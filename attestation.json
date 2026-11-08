@@ -1,9 +1,9 @@
 {
   "pluginId": "neodex.sortiesanime",
   "repo": "NDesumeur/neodex-plugin-sorties-anime",
-  "version": "1.2.2",
-  "sha256": "46651b96105a8026ddaab5aba3e1f612407d151cf42a382d290e0fedef3d53cd",
-  "approvedAt": "2026-11-08T00:05:41.901Z",
+  "version": "1.2.3",
+  "sha256": "4f81aea2a2139e50baf13ee1d81a23f9a0a9c6ab540f6e8d4b15f13aadc3fc89",
+  "approvedAt": "2026-11-08T12:10:50.547Z",
   "neobase": ">=4.0.0",
-  "signature": "WtASGPHC3SiANSYtJoHLaRB3CQgAPwILwNWLbXjiPGvsV8wKIt8tCeEYoQhKDabsyKbgjHRJqXtI0dzMa0xyAA=="
+  "signature": "BqZh7UI6v5tdibXEATzLZv7yyb1z8WjgFX/MkrM3JPj10Xtai1igxROLxpw7/U35F+RQEkm/CeSZD8IirzcSDA=="
 }
