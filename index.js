@@ -263,7 +263,7 @@ $('anCal').onchange = () => { anime.calendar = $('anCal').checked; saveAnime(); 
       const ms = n.airingAt * 1000 - now;
       if (ms > 10 * 60000 || ms < -30 * 60000 || done.has(k)) continue;  // trop tôt, ou sorti depuis plus d'une demi-heure (NeoDex était fermé)
       done.add(k); changed = true;
-      await ctx.notifications.send({ title: a.title + ' · ép. ' + n.episode, body: ms > 0 ? 'Sort dans ' + Math.max(1, Math.round(ms / 60000)) + ' min' : 'Vient de sortir', open: 'plugin:' + ctx.id }).catch(() => {});
+      await ctx.notifications.send({ title: a.title + ' · ép. ' + n.episode, body: ms > 0 ? 'Sort dans ' + Math.max(1, Math.round(ms / 60000)) + ' min' : 'Vient de sortir', open: 'plugin:' + ctx.id, image: a.cover || undefined }).catch(() => {});  // l'affiche de l'anime
     }
     if (changed) { anime.notified = [...done].slice(-200); saveAnime(); }
   }
