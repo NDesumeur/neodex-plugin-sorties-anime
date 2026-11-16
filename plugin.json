@@ -1,9 +1,9 @@
 {
   "id": "neodex.sortiesanime",
   "name": "Sorties anime",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "author": "NDesumeur",
-  "description": "Le calendrier des sorties d'animes d'après AniList : tous les épisodes du jour, triés par heure ou par popularité, et tes animes suivis avec le compte à rebours jusqu'au prochain épisode. Leurs sorties des 45 prochains jours s'ajoutent à ton emploi du temps, un rappel arrive 10 minutes avant chaque épisode, et ta liste s'importe depuis FRAnime ou une liste de titres.",
+  "description": "Le calendrier des sorties d'animes d'après AniList : tous les épisodes du jour, triés par heure ou par popularité, et tes animes suivis avec le compte à rebours jusqu'au prochain épisode. Leurs sorties des 45 prochains jours s'ajoutent à ton emploi du temps, un rappel arrive 10 minutes avant chaque épisode, et ta liste s'importe depuis FRAnime ou une liste de titres. S'adapte à la taille de l'écran : sur grand écran, les sorties du jour se rangent sur deux colonnes, les affiches et les textes grandissent.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "sortiesanime",
