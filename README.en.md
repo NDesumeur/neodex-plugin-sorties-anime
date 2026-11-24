@@ -4,6 +4,10 @@ The anime release calendar: every episode airing each day around the world, not 
 
 *Version française : [README.md](README.md)*
 
+## Watched episodes and AniList list (new in 1.4.0)
+
+One click on ✓ EP. 8 WATCHED marks the episode as watched, each anime says how many are left to catch up, and LINK MY ANILIST LIST follows your 
+
 ## Day by day
 
 - Every release of a day (adult content excluded), with the time, episode number and poster. Change day with the arrows; **Today** goes back to the current day.
@@ -43,3 +47,11 @@ Network access: AniList only (graphql.anilist.co for air times, s4.anilist.co fo
 In NeoDex: **NeoStore → Discover → Sorties anime → Install**.
 
 Building a plugin: see the [NeoDex SDK](https://github.com/NDesumeur/neodex-sdk).
+
+## Watched episodes and AniList list (1.4.0)
+
+- In **My anime**, each card says where you are: “watched up to ep. 7 · 2 to catch up”, “up to date” or “not started yet”.
+- **✓ EP. 8 WATCHED** marks the next episode in one click (never beyond the episodes already out). **−1** goes back if you made a mistake.
+- **LINK MY ANILIST LIST**: give your AniList username (your list must be public). The anime of your “watching” list are followed and your watched episodes brought back. The list is read again at each release update (at most once an hour); a watched episode never goes backwards.
+- Marking an episode here does not mark it on AniList yet: that needs you to sign in to AniList, which will come later.
+- Watched episodes sync between your devices with the rest of your anime.

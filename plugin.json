@@ -1,16 +1,19 @@
 {
   "id": "neodex.sortiesanime",
   "name": "Sorties anime",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": "NDesumeur",
-  "description": "Le calendrier des sorties d'animes d'après AniList : tous les épisodes du jour, triés par heure ou par popularité, et tes animes suivis avec le compte à rebours jusqu'au prochain épisode. Leurs sorties des 45 prochains jours s'ajoutent à ton emploi du temps, un rappel arrive 10 minutes avant chaque épisode, et ta liste s'importe depuis FRAnime ou une liste de titres. S'adapte à la taille de l'écran : sur grand écran, les sorties du jour se rangent sur deux colonnes, les affiches et les textes grandissent.",
+  "description": "Le calendrier des sorties d'animes d'après AniList : tous les épisodes du jour, triés par heure ou par popularité, et tes animes suivis avec le compte à rebours jusqu'au prochain épisode. Leurs sorties des 45 prochains jours s'ajoutent à ton emploi du temps, un rappel arrive 10 minutes avant chaque épisode, et ta liste s'importe depuis FRAnime ou une liste de titres. S'adapte à la taille de l'écran : sur grand écran, les sorties du jour se rangent sur deux colonnes, les affiches et les textes grandissent. Un clic sur « ✓ ÉP. 8 VU » note l’épisode vu, chaque anime dit combien il en reste à rattraper, et ta liste « en cours » d’AniList (pseudo public) s’ajoute avec tes épisodes vus.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "sortiesanime",
   "neobase": ">=4.0.0",
   "type": "app",
   "category": "Anime",
-  "compatibility": ["windows", "linux"],
+  "compatibility": [
+    "windows",
+    "linux"
+  ],
   "syncMode": "fusion",
   "syncInfo": "Animes suivis et masqués, réglages de l'agenda et des rappels.",
   "mobile": false,

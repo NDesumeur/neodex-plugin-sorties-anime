@@ -49,10 +49,54 @@ function pickReleases(w, media) {
   return out;
 }
 
+// ---- épisodes vus (par identifiant AniList) et liste « en cours » d'AniList ----
+const epCap = a => a.next ? a.next.episode - 1 : a.status === 'NOT_YET_RELEASED' ? 0 : Infinity;  // épisodes déjà sortis (inconnu sans prochain épisode annoncé)
+function epInfo(seen, a) {
+  const cap = epCap(a), left = cap === Infinity ? 0 : Math.max(0, cap - seen);
+  const text = seen ? 'vu jusqu’à l’ép. ' + seen + (left ? ' · ' + left + ' à rattraper' : cap !== Infinity ? ' · à jour' : '') : !cap ? 'pas encore sorti' : 'pas encore commencé' + (cap !== Infinity ? ' · ' + cap + (cap > 1 ? ' ép. sortis' : ' ép. sorti') : '');
+  return {seen, cap, left, text};
+}
+// suivre ce qui manque (sauf ce que tu as arrêté de suivre), avancer les épisodes vus (jamais reculer)
+function alMerge(an, entries) {
+  const titles = new Set(Object.values(an.watched).map(w => norm(w.title))), mids = new Set((an.cache?.items || []).map(a => a.mid)), has = t => !!t && titles.has(norm(t));
+  let added = 0, moved = 0; an.progress ||= {};
+  for (const e of entries) {
+    const m = e.media, slug = 'al-' + m.id;
+    if (!an.watched[slug] && !mids.has(m.id) && !has(m.title.english) && !has(m.title.romaji) && !an.deleted.includes(slug)) {
+      an.watched[slug] = {slug, title: m.title.english || m.title.romaji, season: 1, ep: 0, last: Date.now(), imported: true, franime: false, anilist: true}; titles.add(norm(m.title.english || m.title.romaji)); added++;
+    }
+    if ((e.progress || 0) > (an.progress[m.id]?.ep || 0)) { an.progress[m.id] = {ep: e.progress, at: Date.now()}; moved++; }
+  }
+  return {added, moved};
+}
+{  // vérifications : épisodes sortis et à rattraper, fusion de la liste AniList
+  const a = {next: {episode: 9}}, ok1 = epInfo(0, a).text === 'pas encore commencé · 8 ép. sortis' && epInfo(6, a).text === 'vu jusqu’à l’ép. 6 · 2 à rattraper' && epInfo(8, a).text === 'vu jusqu’à l’ép. 8 · à jour'
+    && epInfo(0, {status: 'NOT_YET_RELEASED'}).text === 'pas encore sorti' && epInfo(3, {status: 'RELEASING'}).text === 'vu jusqu’à l’ép. 3';
+  const an = {watched: {f: {slug: 'f', title: 'Frieren'}}, deleted: ['al-3'], cache: {items: [{mid: 4}]}, progress: {2: {ep: 7}}};
+  const r = alMerge(an, [{progress: 5, media: {id: 1, title: {romaji: 'Sousou no Frieren', english: 'Frieren'}}}, {progress: 2, media: {id: 2, title: {romaji: 'B'}}}, {progress: 1, media: {id: 3, title: {romaji: 'C'}}}, {progress: 0, media: {id: 4, title: {romaji: 'D'}}}, {progress: 3, media: {id: 5, title: {romaji: 'E', english: null}}}]);
+  console.assert(ok1 && r.added === 2 && r.moved === 3 && an.watched['al-5']?.title === 'E' && an.watched['al-2'] && !an.watched['al-1'] && !an.watched['al-3'] && !an.watched['al-4'] && an.progress[2].ep === 7 && an.progress[1].ep === 5, 'épisodes vus / AniList', r, an);
+}
+// la liste AniList liée, relue au plus une fois par minute (pseudo public, aucune connexion)
+async function alPull() {
+  const l = anime.anilist; if (!l?.user || (l.at && Date.now() - l.at < 60000)) return null;
+  let data;
+  try { data = await aniFetch('{MediaListCollection(userName:' + JSON.stringify(l.user) + ',type:ANIME,status_in:[CURRENT,REPEATING]){lists{entries{progress media{id title{romaji english}}}}}}'); }
+  catch (e) { throw new Error(/404/.test(e.message) ? 'pseudo AniList introuvable' : e.message); }
+  const entries = (data?.MediaListCollection?.lists || []).flatMap(x => x.entries), r = alMerge(anime, entries);
+  Object.assign(l, {at: Date.now(), n: entries.length, last: r}); return r;
+}
+function markSeen(a, d) {
+  anime.progress ||= {};
+  const cur = anime.progress[a.mid]?.ep || 0, v = Math.max(0, Math.min(epCap(a), cur + d)); if (v === cur) return;
+  anime.progress[a.mid] = {ep: v, at: Date.now()}; saveAnime(); renderAnime();
+  toast('« ' + a.title + ' » : ' + (d > 0 ? 'épisode ' + v + ' vu' : v ? 'retour à l’épisode ' + v : 'aucun épisode vu'));
+}
+
 async function refreshAnime(force) {
   if (animeBusy || (!force && anime.cache && Date.now() - anime.cache.at < 3600000)) return;  // AniList at most once an hour
   animeBusy = true; renderAnime();
   try {
+    try { await alPull(); } catch (e) { console.warn(e); }  // ta liste AniList d'abord : ses nouveaux animes sont cherchés tout de suite
     const watched = Object.values(anime.watched).filter(w => !anime.ignored.includes(w.slug)), items = [], old = anime.cache?.items || [];
     const sleep = s => new Promise(ok => setTimeout(ok, s * 1000));
     let failed = 0;
@@ -89,6 +133,7 @@ function animeUnfollow(slug) {  // ne plus suivre : retiré pour de bon
   saveAnime(); toast('« ' + w.title + ' » : tu ne le suis plus'); animeAfter();
 }
 function renderAnime() {
+  renderAl();
   const list = $('anList'), now = Date.now() / 1000, all = Object.values(anime.watched);
   const items = animeReleases().sort((a, b) => (a.next?.airingAt ?? 9e12) - (b.next?.airingAt ?? 9e12));
   const ago = anime.cache ? Math.round((Date.now() - anime.cache.at) / 60000) : null;
@@ -102,12 +147,15 @@ function renderAnime() {
     if (a.next) { const ms = (a.next.airingAt - now) * 1000; when = 'ÉPISODE ' + a.next.episode; badge = ms <= 0 ? el('span', 'badge now', 'sorti') : el('span', 'badge' + (ms < 86400000 ? ' soon' : ''), until(ms)); }
     else { when = a.status === 'NOT_YET_RELEASED' ? 'BIENTÔT' : 'EN COURS'; badge = el('span', 'badge', a.start?.year ? (a.start.month ? MONTHS[a.start.month - 1] + ' ' : '') + a.start.year : 'date inconnue'); }
     meta.append(el('span', 'anEp', when), badge);
-    const open = el('button', 'btn main px', 'OUVRIR'), hide = el('button', 'btn ghost px', 'MASQUER'), stop = el('button', 'btn ghost px', 'NE PLUS SUIVRE');
+    const ep = epInfo(anime.progress?.[a.mid]?.ep || 0, a), prog = el('small', 'anProg' + (ep.left ? ' late' : ''), ep.text);
+    const open = el('button', 'btn px', 'OUVRIR'), hide = el('button', 'btn ghost px', 'MASQUER'), stop = el('button', 'btn ghost px', 'NE PLUS SUIVRE');
     open.onclick = () => openFranime(a); hide.title = 'Le cacher de cette liste sans l\'oublier';
     hide.onclick = () => { anime.ignored.push(a.slug); saveAnime(); animeAfter(); };
     stop.onclick = async () => { if (await nbConfirm('Ne plus suivre « ' + a.title + ' » ?')) animeUnfollow(a.slug); };
+    if (ep.seen < ep.cap) { const vu = el('button', 'btn main px anSeen', '✓ ÉP. ' + (ep.seen + 1) + ' VU'); vu.title = 'J’ai vu l’épisode ' + (ep.seen + 1); vu.onclick = () => markSeen(a, 1); acts.append(vu); }
+    if (ep.seen) { const back = el('button', 'btn ghost px anBack', '−1'); back.title = 'Annuler : revenir à l’épisode ' + (ep.seen - 1); back.setAttribute('aria-label', back.title); back.onclick = () => markSeen(a, -1); acts.append(back); }
     acts.append(open, hide, stop);
-    body.append(el('b', 'anTitle', a.title), meta, el('small', 'anSrc', w?.imported ? (w.franime ? 'Dans ta liste FRAnime' : 'Ajouté par toi') : 'Vu sur FRAnime · saison ' + w?.season + ' · ép. ' + w?.ep), acts);
+    body.append(el('b', 'anTitle', a.title), meta, prog, el('small', 'anSrc', w?.imported ? (w.franime ? 'Dans ta liste FRAnime' : 'Ajouté par toi') : 'Vu sur FRAnime · saison ' + w?.season + ' · ép. ' + w?.ep), acts);
     c.append(img, body); return c;
   };
   const week = items.filter(a => a.next && a.next.airingAt - now < 7 * 86400), later = items.filter(a => !week.includes(a));
@@ -151,6 +199,25 @@ function importList(text) {
   for (const [, slug] of text.matchAll(/franime\.fr\/anime\/([a-z0-9-]+)/gi)) add(slug, slug.replace(/-/g, ' '), true);
   for (const t of lines) add('import-' + norm(t), t, false);
   return n;
+}
+const alBox = el('div', 'anAl'); $('anImport').after(alBox);
+function renderAl() {
+  const l = anime.anilist;
+  if (!l?.user) { const b = el('button', 'btn px', 'LIER MA LISTE ANILIST'); b.id = 'anAlLink'; b.title = 'Suivre les animes de ta liste « en cours » d’AniList et reprendre tes épisodes vus'; b.onclick = () => linkAl(); return alBox.replaceChildren(b); }
+  const re = el('button', 'btn px', 'RELIRE'), un = el('button', 'btn ghost px', 'DÉLIER');
+  re.onclick = () => linkAl(l.user);
+  un.onclick = async () => { if (!await nbConfirm('Délier ta liste AniList « ' + l.user + ' » ? Tes animes et tes épisodes vus restent ici.')) return; delete anime.anilist; saveAnime(); renderAl(); };
+  alBox.replaceChildren(el('span', 'hint', 'AniList : ' + l.user + (l.at ? ' · ' + l.n + ' en cours · relue ' + until(l.at - Date.now()).replace('en retard de', 'il y a') : '')), re, un);
+}
+async function linkAl(user) {
+  user = (user || await ask('Ton pseudo AniList', '', 'ta liste doit être publique') || '').trim(); if (!user) return;
+  if (!/^[A-Za-z0-9_-]{2,30}$/.test(user)) return toast('Pseudo AniList invalide (lettres, chiffres, - et _)', true);
+  const was = anime.anilist; anime.anilist = {user};
+  try {
+    const r = await alPull(); saveAnime(); renderAl();
+    toast('AniList : ' + anime.anilist.n + ' anime(s) en cours · ' + r.added + ' ajouté(s) · ' + r.moved + ' avancé(s)');
+    if (r.added) refreshAnime(true); else renderAnime();
+  } catch (e) { anime.anilist = was; renderAl(); toast('AniList : ' + e.message, true); }
 }
 $('anImport').onclick = () => { $('imText').value = ''; $('imModal').classList.add('on'); $('imText').focus(); };
 const closeIm = () => $('imModal').classList.remove('on');
@@ -241,7 +308,7 @@ async function renderDay() {
     r.onclick = () => newTab(m.siteUrl); return r;
   }) : [el('div', 'hint', mine ? 'Aucun de tes animes ne sort ce jour-là.' : 'Aucune sortie ce jour-là.')]));
 }
-host.addStyle('.anGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(340px,24vw,470px),1fr));gap:clamp(12px,1vw,18px)} .anCard{display:grid;grid-template-columns:clamp(80px,6vw,110px) 1fr;gap:12px;padding:10px;background:color-mix(in srgb,var(--line) 30%,var(--bg0));box-shadow:inset 0 0 0 2px var(--line2)} .anCard:hover{box-shadow:inset 0 0 0 2px var(--magenta)} .anPoster{width:clamp(80px,6vw,110px);height:auto;aspect-ratio:7/10;object-fit:cover;background:#1a0a2e} .anPoster.none{visibility:hidden} .anBody{display:flex;flex-direction:column;gap:6px;min-width:0} .anTitle{font:clamp(12px,.9vw,16px)/1.4 var(--title);color:#fff;word-break:break-word} .anMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .anEp{font:clamp(10px,.7vw,12px) var(--title);color:var(--lilac)} .anSrc{color:var(--muted);font-size:clamp(13px,.85vw,15px)} .anActs{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto} .anActs .btn{height:clamp(32px,2.3vw,40px);padding:0 10px;font:clamp(10px,.7vw,12px) var(--title)} .anSec{all:unset;display:block;cursor:var(--cp,pointer);font:clamp(10px,.7vw,12px) var(--title);letter-spacing:1.5px;color:var(--muted);margin:18px 0 8px} .anSec:hover{color:#fff} #anInfo{font-size:14px;color:var(--muted)} #imModal{position:fixed;inset:0;z-index:40;display:none;place-items:center;background:rgba(var(--d5),.72);backdrop-filter:blur(3px)} #imModal.on{display:grid} #imText{height:240px;resize:vertical;font-size:16px;line-height:1.4} .anNav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px} .anNav b{font:clamp(12px,.95vw,16px) var(--title);color:var(--lilac);margin:0 8px;text-transform:capitalize} .anNav select{width:auto;min-width:200px} .anCheck{display:flex;gap:8px;align-items:center;color:var(--shell);font-size:15px;margin:6px 0} .anCover{width:clamp(34px,2.6vw,50px);height:auto;aspect-ratio:7/10;object-fit:cover;margin:0 8px;flex:none} #anDayList{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(480px,26vw,620px),1fr));column-gap:clamp(16px,1.6vw,32px)} #anDayList>.hint{grid-column:1/-1} #anDayList .titem .tn{font-size:clamp(15px,1.05vw,18px);min-width:0} #anDayList .titem .tt{font-size:clamp(13px,.9vw,16px)}');
+host.addStyle('.anProg{font-size:clamp(13px,.85vw,15px);color:var(--muted)} .anProg.late{color:var(--pink)} .anSeen{white-space:nowrap} .anBack{min-width:0;padding:0 10px} .anAl{display:flex;align-items:center;gap:10px;flex-wrap:wrap} #anMineBox>.row{flex-wrap:wrap;gap:10px} @media (max-width:640px){#anDayList .titem{flex-wrap:wrap;row-gap:6px} #anDayList .titem .tt{min-width:auto} #anDayList .titem .tn{flex:1 1 calc(100% - 150px)} #anDayList .titem .badge{margin-left:auto}} .anGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(clamp(340px,24vw,470px),100%),1fr));gap:clamp(12px,1vw,18px)} .anCard{display:grid;grid-template-columns:clamp(80px,6vw,110px) 1fr;gap:12px;padding:10px;background:color-mix(in srgb,var(--line) 30%,var(--bg0));box-shadow:inset 0 0 0 2px var(--line2)} .anCard:hover{box-shadow:inset 0 0 0 2px var(--magenta)} .anPoster{width:clamp(80px,6vw,110px);height:auto;aspect-ratio:7/10;object-fit:cover;background:#1a0a2e} .anPoster.none{visibility:hidden} .anBody{display:flex;flex-direction:column;gap:6px;min-width:0} .anTitle{font:clamp(12px,.9vw,16px)/1.4 var(--title);color:#fff;word-break:break-word} .anMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .anEp{font:clamp(10px,.7vw,12px) var(--title);color:var(--lilac)} .anSrc{color:var(--muted);font-size:clamp(13px,.85vw,15px)} .anActs{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto} .anActs .btn{height:clamp(32px,2.3vw,40px);padding:0 10px;font:clamp(10px,.7vw,12px) var(--title)} .anSec{all:unset;display:block;cursor:var(--cp,pointer);font:clamp(10px,.7vw,12px) var(--title);letter-spacing:1.5px;color:var(--muted);margin:18px 0 8px} .anSec:hover{color:#fff} #anInfo{font-size:14px;color:var(--muted)} #imModal{position:fixed;inset:0;z-index:40;display:none;place-items:center;background:rgba(var(--d5),.72);backdrop-filter:blur(3px)} #imModal.on{display:grid} #imText{height:240px;resize:vertical;font-size:16px;line-height:1.4} .anNav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px} .anNav b{font:clamp(12px,.95vw,16px) var(--title);color:var(--lilac);margin:0 8px;text-transform:capitalize} .anNav select{width:auto;min-width:200px} .anCheck{display:flex;gap:8px;align-items:center;color:var(--shell);font-size:15px;margin:6px 0} .anCover{width:clamp(34px,2.6vw,50px);height:auto;aspect-ratio:7/10;object-fit:cover;margin:0 8px;flex:none} #anDayList{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(clamp(480px,26vw,620px),100%),1fr));column-gap:clamp(16px,1.6vw,32px)} #anDayList>.hint{grid-column:1/-1} #anDayList .titem .tn{font-size:clamp(15px,1.05vw,18px);min-width:0} #anDayList .titem .tt{font-size:clamp(13px,.9vw,16px)}');
 const anTabs = () => $('anTabs').replaceChildren(...[['day', 'Jour par jour'], ['mine', 'Mes animes']].map(([k, l]) => { const b = el('button', 'tab px' + (anView === k ? ' on' : ''), l); b.onclick = () => { anView = k; anTabs(); $('anDayBox').style.display = k === 'day' ? '' : 'none'; $('anMineBox').style.display = k === 'mine' ? '' : 'none'; if (k === 'day') renderDay(); }; return b; }));
 anTabs(); $('anMineBox').style.display = 'none';
 $('anPrev').onclick = () => { anDay = new Date(anDay.getFullYear(), anDay.getMonth(), anDay.getDate() - 1); renderDay(); };
@@ -271,5 +338,6 @@ $('anCal').onchange = () => { anime.calendar = $('anCal').checked; saveAnime(); 
   const calTimer = setInterval(syncCalendar, 5 * 60000);  // ses événements ne disparaissent pas si l'emploi du temps est remplacé par une synchro
   host.hooks({ agendaChanged: () => syncCalendar() });
   ctx.onOpen(() => { renderAnime(); renderDay(); });
+  view.__an = {load: d => { anime = {watched: {}, ignored: [], deleted: [], cache: null, ...d}; animeLoaded = true; renderAnime(); }, data: () => anime, merge: alMerge, tab: k => [...$('anTabs').children][k === 'mine' ? 1 : 0].click()};  // pour l'auto-test
   ctx.onClose(() => { clearInterval(anTimer); clearInterval(calTimer); clearInterval(remindTimer); });
 }

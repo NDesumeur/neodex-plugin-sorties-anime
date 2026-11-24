@@ -4,6 +4,10 @@ Le calendrier des sorties d'animes : tous les épisodes qui sortent chaque jour 
 
 *English version: [README.en.md](README.en.md)*
 
+## Épisodes vus et liste AniList (nouveau en 1.4.0)
+
+Un clic sur ✓ ÉP. 8 VU note l’épisode vu, chaque anime dit combien il en reste à rattraper, et LIER MA LISTE ANILIST suit ta liste « en cours » avec tes épisodes vus. La liste du jour s’adapte aussi aux petites fenêtres.
+
 ## Jour par jour
 
 - Toutes les sorties d'une journée (sans le contenu adulte), avec l'heure, le numéro d'épisode et l'affiche. On change de jour avec les flèches ; **Aujourd'hui** revient au jour même.
@@ -43,3 +47,11 @@ Accès réseau : seulement AniList (graphql.anilist.co pour les horaires, s4.ani
 Dans NeoDex : **NeoStore → À découvrir → Sorties anime → Installer**.
 
 Développer un plugin : voir le [SDK NeoDex](https://github.com/NDesumeur/neodex-sdk).
+
+## Épisodes vus et liste AniList (1.4.0)
+
+- Dans **Mes animes**, chaque carte dit où tu en es : « vu jusqu’à l’ép. 7 · 2 à rattraper », « à jour » ou « pas encore commencé ».
+- **✓ ÉP. 8 VU** note l’épisode suivant en un clic (jamais au-delà des épisodes déjà sortis). **−1** revient en arrière en cas d’erreur.
+- **LIER MA LISTE ANILIST** : donne ton pseudo AniList (ta liste doit être publique). Les animes de ta liste « en cours » sont suivis et tes épisodes vus repris. La liste est relue à chaque mise à jour des sorties (au plus une fois par heure) ; un épisode vu n’est jamais reculé.
+- Cocher un épisode ici ne le coche pas encore sur AniList : il faudrait te connecter à AniList, ce qui viendra plus tard.
+- Les épisodes vus sont synchronisés entre tes appareils avec le reste de tes animes.
